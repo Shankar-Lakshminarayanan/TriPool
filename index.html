@@ -6,7 +6,7 @@
   <title>TriPool - 3-Person Fair Carpool Planner</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    body { background-color: #0b1120; color: #f8fafc; padding-bottom: 80px; min-height: 100vh; }
+    body { background-color: #0b1120; color: #f8fafc; padding-bottom: 90px; min-height: 100vh; }
     
     .header {
       position: sticky; top: 0; z-index: 30;
@@ -27,14 +27,22 @@
       background: rgba(16, 185, 129, 0.15); color: #34d399;
       border: 1px solid rgba(16, 185, 129, 0.3); text-transform: uppercase;
     }
-    .header-btns { display: flex; align-items: center; gap: 6px; }
+    .header-btns { display: flex; align-items: center; gap: 8px; }
     .btn-header-icon {
       background: #1e293b; color: #94a3b8; border: 1px solid #334155;
-      padding: 7px; border-radius: 8px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+      padding: 7px 10px; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; gap: 5px;
     }
     
     .container { max-width: 600px; margin: 0 auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+    
+    /* Sync alert banner */
+    .sync-banner {
+      background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #34d399;
+      display: none; align-items: center; justify-content: space-between;
+    }
+    .sync-banner.active { display: flex; }
     
     .bar-controls { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .week-nav { display: flex; align-items: center; background: #131c2e; border: 1px solid #1e293b; border-radius: 8px; padding: 2px; }
@@ -91,21 +99,26 @@
     .chip.available { background: #131c2e; color: #cbd5e1; border: 1px solid #1e293b; }
     .chip.unavailable { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); text-decoration: line-through; }
     
+    /* Dedicated Share Section */
     .card-share {
       background: #131c2e; border: 1px solid #1e293b; border-radius: 14px;
-      padding: 16px; margin-top: 10px;
+      padding: 16px; margin-top: 10px; display: flex; flex-direction: column; gap: 10px;
     }
-    .card-share-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: #fff; }
-    .card-share-desc { font-size: 11px; color: #94a3b8; margin-bottom: 12px; line-height: 1.4; }
-    .share-btns-row { display: flex; gap: 8px; }
+    .card-share-title { font-size: 14px; font-weight: 700; color: #fff; }
+    .card-share-desc { font-size: 12px; color: #94a3b8; line-height: 1.4; }
+    .share-btns-row { display: flex; gap: 8px; flex-direction: column; }
     .btn-wa-action {
-      flex: 2; background: #059669; color: #ffffff; border: none; padding: 10px 14px;
-      border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; background: #059669; color: #ffffff; border: none; padding: 12px;
+      border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
     .btn-copy-action {
-      flex: 1; background: #1e293b; color: #cbd5e1; border: 1px solid #334155;
+      width: 100%; background: #1e293b; color: #cbd5e1; border: 1px solid #334155;
       padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-paste-action {
+      background: none; border: none; color: #60a5fa; font-size: 12px; cursor: pointer; text-decoration: underline; margin-top: 4px;
     }
 
     .modal-overlay {
@@ -162,18 +175,24 @@
     </div>
     <div class="header-btns">
       <button class="btn-header-icon" id="btnSettings" title="Edit Riders">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
         </svg>
+        Riders
       </button>
     </div>
   </header>
 
   <main class="container">
+    <div class="sync-banner" id="syncBanner">
+      <span id="syncBannerText">✓ Loaded shared schedule!</span>
+      <button style="background:none; border:none; color:#34d399; font-weight:700; cursor:pointer;" id="btnCloseBanner">&times;</button>
+    </div>
+
     <div class="bar-controls">
       <div class="week-nav">
         <button class="week-nav-btn" id="btnPrevWeek">&lt;</button>
-        <span class="week-nav-label" id="weekLabel">This Week</span>
+        <span class="week-nav-label" id="weekLabel">Loading...</span>
         <button class="week-nav-btn" id="btnNextWeek">&gt;</button>
       </div>
       <button class="btn-auto" id="btnAutoFill">
@@ -186,21 +205,31 @@
 
     <section id="daysContainer"></section>
 
+    <!-- Share Card -->
     <div class="card-share">
-      <div class="card-share-title">Share with WhatsApp Group</div>
-      <div class="card-share-desc">Send the current assignments and availability to your group chat. Anyone opening the link will see the saved schedule.</div>
+      <div class="card-share-title">Share Schedule with Group</div>
+      <div class="card-share-desc">Tap below to share via WhatsApp or copy the link. Any rider who opens your link will immediately see all saved names, rides, and dates.</div>
       <div class="share-btns-row">
         <button class="btn-wa-action" id="btnWhatsApp">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
           </svg>
-          Share to WhatsApp
+          Send to WhatsApp Group
         </button>
-        <button class="btn-copy-action" id="btnCopyLink">Copy Link</button>
+        <button class="btn-copy-action" id="btnCopyLink">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Copy Shareable Link
+        </button>
+      </div>
+      <div style="text-align: center;">
+        <button class="btn-paste-action" id="btnOpenImport">Paste or Import Schedule</button>
       </div>
     </div>
   </main>
 
+  <!-- Driver Picker Modal -->
   <div class="modal-overlay" id="driverPickerModal">
     <div class="modal-box">
       <div class="modal-top">
@@ -211,6 +240,7 @@
     </div>
   </div>
 
+  <!-- Settings Modal -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal-box">
       <div class="modal-top">
@@ -219,6 +249,19 @@
       </div>
       <div id="settingsRiderInputs"></div>
       <button class="btn-primary" id="btnSaveRiders">Save Names</button>
+    </div>
+  </div>
+
+  <!-- Manual Import Modal -->
+  <div class="modal-overlay" id="importModal">
+    <div class="modal-box">
+      <div class="modal-top">
+        <h3>Import Schedule</h3>
+        <button class="btn-close-x" id="btnCloseImport">&times;</button>
+      </div>
+      <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">Paste the link or message you received in WhatsApp:</p>
+      <textarea id="importTextInput" rows="4" style="width:100%; background:#0b1120; border:1px solid #334155; border-radius:8px; color:#fff; padding:8px; font-size:12px; outline:none; resize:none;" placeholder="Paste here..."></textarea>
+      <button class="btn-primary" id="btnSubmitImport">Import Now</button>
     </div>
   </div>
 
@@ -246,18 +289,13 @@
         setTimeout(() => el.classList.remove('show'), 2000);
       }
 
-      // Compute the exact Monday date for the selected week offset
       function getMondayOfWeek(offset) {
         const now = new Date();
-        const day = now.getDay(); // 0 is Sunday, 6 is Saturday
-        
-        // If it's Saturday (6) or Sunday (0), advance to upcoming Monday
+        const day = now.getDay();
         let diffToMonday = 1 - day;
-        if (day === 0) diffToMonday = 1;      // Sunday -> next day
-        if (day === 6) diffToMonday = 2;      // Saturday -> 2 days ahead
-
-        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + (offset * 7));
-        return monday;
+        if (day === 0) diffToMonday = 1;
+        if (day === 6) diffToMonday = 2;
+        return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + (offset * 7));
       }
 
       function getWeekDaysData(offset) {
@@ -278,38 +316,103 @@
             shortName: DAY_NAMES[i].slice(0, 3),
             isoDate: isoDate,
             formattedDate: formattedDate,
-            key: isoDate // Schedule storage key is the exact YYYY-MM-DD
+            key: isoDate
           });
         }
         return days;
       }
 
-      function safeLoad() {
-        let imported = null;
+      // Compact, lossless state serializer
+      function serializeState() {
+        const payload = {
+          m: state.members.map(m => m.name),
+          s: {}
+        };
+
+        // Only save keys that actually have assignments or changes
+        Object.keys(state.schedules).forEach(k => {
+          const item = state.schedules[k];
+          if (item && (item.skip || item.am || item.pm || (item.unavail_am && item.unavail_am.length) || (item.unavail_pm && item.unavail_pm.length))) {
+            payload.s[k] = {
+              k: item.skip ? 1 : 0,
+              a: item.am || '',
+              p: item.pm || '',
+              ua: item.unavail_am || [],
+              up: item.unavail_pm || []
+            };
+          }
+        });
+
+        return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(payload)))));
+      }
+
+      function deserializeState(encodedStr) {
         try {
-          const params = new URLSearchParams(window.location.search);
-          const raw = params.get('s');
-          if (raw) imported = JSON.parse(decodeURIComponent(escape(atob(raw))));
-        } catch (e) {}
+          const raw = decodeURIComponent(escape(atob(decodeURIComponent(encodedStr))));
+          const data = JSON.parse(raw);
+          if (!data) return false;
 
-        if (!imported) {
-          try {
-            const local = localStorage.getItem('tripool_schedule_data');
-            if (local) imported = JSON.parse(local);
-          } catch (e) {}
-        }
+          if (Array.isArray(data.m) && data.m.length === 3) {
+            state.members[0].name = data.m[0];
+            state.members[1].name = data.m[1];
+            state.members[2].name = data.m[2];
+          }
 
-        if (imported) {
-          if (Array.isArray(imported.m) && imported.m.length === 3) state.members = imported.m;
-          if (imported.s) state.schedules = imported.s;
+          if (data.s && typeof data.s === 'object') {
+            Object.keys(data.s).forEach(k => {
+              const item = data.s[k];
+              state.schedules[k] = {
+                skip: item.k === 1,
+                am: item.a || '',
+                pm: item.p || '',
+                unavail_am: item.ua || [],
+                unavail_pm: item.up || []
+              };
+            });
+          }
+          return true;
+        } catch (e) {
+          console.error("Decode failed", e);
+          return false;
         }
       }
 
-      function safeSave() {
+      function safeLoad() {
+        let loadedFromUrl = false;
         try {
-          localStorage.setItem('tripool_schedule_data', JSON.stringify({ m: state.members, s: state.schedules }));
+          const params = new URLSearchParams(window.location.search);
+          const sParam = params.get('s');
+          if (sParam) {
+            loadedFromUrl = deserializeState(sParam);
+          }
         } catch (e) {}
-        render();
+
+        if (loadedFromUrl) {
+          // Show confirmation banner
+          const banner = document.getElementById('syncBanner');
+          const bannerText = document.getElementById('syncBannerText');
+          bannerText.textContent = `✓ Loaded schedule for ${state.members.map(m => m.name).join(', ')}!`;
+          banner.classList.add('active');
+          safeSave(true); // Save to local storage quietly
+          return;
+        }
+
+        // Otherwise load from local storage
+        try {
+          const local = localStorage.getItem('tripool_schedule_data_v2');
+          if (local) {
+            const data = JSON.parse(local);
+            if (data.m) state.members = data.m;
+            if (data.s) state.schedules = data.s;
+          }
+        } catch (e) {}
+      }
+
+      function safeSave(skipRender = false) {
+        try {
+          localStorage.setItem('tripool_schedule_data_v2', JSON.stringify({ m: state.members, s: state.schedules }));
+        } catch (e) {}
+        if (!skipRender) render();
       }
 
       function render() {
@@ -317,13 +420,9 @@
         const container = document.getElementById('daysContainer');
         container.innerHTML = '';
 
-        // Update Week Navigation Label with real dates (e.g. "Oct 5 – Oct 9, 2026")
         const startDay = weekDays[0];
         const endDay = weekDays[4];
-        const yearStr = (startDay.formattedDate.split(' ')[0] === endDay.formattedDate.split(' ')[0]) 
-          ? `${startDay.formattedDate} – ${endDay.formattedDate}`
-          : `${startDay.formattedDate} – ${endDay.formattedDate}`;
-        document.getElementById('weekLabel').textContent = yearStr;
+        document.getElementById('weekLabel').textContent = `${startDay.formattedDate} – ${endDay.formattedDate}`;
 
         weekDays.forEach(dayObj => {
           const key = dayObj.key;
@@ -468,24 +567,17 @@
           const div = document.createElement('div');
           div.className = `picker-option ${isSelected ? 'selected' : ''} ${isUnavail ? 'unavail-option' : ''}`;
           div.innerHTML = `
-            <div>
-              ${m.name} ${isUnavail ? '<span style="color:#ef4444; font-size:10px; margin-left:4px;">(Unavailable)</span>' : ''}
-            </div>
+            <div>${m.name} ${isUnavail ? '<span style="color:#ef4444; font-size:10px; margin-left:4px;">(Unavailable)</span>' : ''}</div>
             ${isSelected ? '<span>✓</span>' : ''}
           `;
-          div.onclick = function() {
-            selectDriver(m.id);
-          };
+          div.onclick = function() { selectDriver(m.id); };
           container.appendChild(div);
         });
 
-        // Clear option
         const clearDiv = document.createElement('div');
         clearDiv.className = 'picker-option unassign-option';
         clearDiv.innerHTML = `<span>Unassigned</span> ${!currentSelected ? '<span>✓</span>' : ''}`;
-        clearDiv.onclick = function() {
-          selectDriver('');
-        };
+        clearDiv.onclick = function() { selectDriver(''); };
         container.appendChild(clearDiv);
 
         document.getElementById('driverPickerModal').classList.add('open');
@@ -527,16 +619,15 @@
         showToast('Week auto-filled!');
       }
 
-      function getShareableUrl() {
-        const payload = JSON.stringify({ m: state.members, s: state.schedules });
-        const encoded = btoa(unescape(encodeURIComponent(payload)));
-        const baseUrl = window.location.href.split('?')[0];
-        return `${baseUrl}?s=${encoded}`;
+      function getFullShareUrl() {
+        const encoded = serializeState();
+        const base = window.location.href.split('?')[0];
+        return `${base}?s=${encoded}`;
       }
 
       function shareWhatsApp() {
         const weekDays = getWeekDaysData(state.weekOffset);
-        const link = getShareableUrl();
+        const link = getFullShareUrl();
         const startDay = weekDays[0];
         const endDay = weekDays[4];
         let msg = `🚗 *TriPool Carpool Schedule (${startDay.formattedDate} – ${endDay.formattedDate})*\n\n`;
@@ -555,14 +646,14 @@
           }
         });
 
-        msg += `\nOpen and update schedule here:\n${link}`;
+        msg += `\n🔗 *Tap link to view & update schedule:*\n${link}`;
         window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
       }
 
       function copyShareLink() {
-        const link = getShareableUrl();
+        const link = getFullShareUrl();
         if (navigator.clipboard) {
-          navigator.clipboard.writeText(link).then(() => showToast('Share link copied!'));
+          navigator.clipboard.writeText(link).then(() => showToast('Shareable link copied!'));
         } else {
           prompt('Copy this link:', link);
         }
@@ -585,6 +676,10 @@
         document.getElementById('btnAutoFill').onclick = autoFill;
         document.getElementById('btnWhatsApp').onclick = shareWhatsApp;
         document.getElementById('btnCopyLink').onclick = copyShareLink;
+
+        document.getElementById('btnCloseBanner').onclick = () => {
+          document.getElementById('syncBanner').classList.remove('active');
+        };
 
         document.getElementById('btnClosePicker').onclick = () => {
           document.getElementById('driverPickerModal').classList.remove('open');
@@ -614,6 +709,31 @@
           document.getElementById('settingsModal').classList.remove('open');
           safeSave();
           showToast('Names updated!');
+        };
+
+        // Manual Import Modal Logic
+        document.getElementById('btnOpenImport').onclick = () => {
+          document.getElementById('importTextInput').value = '';
+          document.getElementById('importModal').classList.add('open');
+        };
+
+        document.getElementById('btnCloseImport').onclick = () => {
+          document.getElementById('importModal').classList.remove('open');
+        };
+
+        document.getElementById('btnSubmitImport').onclick = () => {
+          const val = document.getElementById('importTextInput').value.trim();
+          let sCode = val;
+          if (val.includes('?s=')) {
+            sCode = val.split('?s=')[1].split('&')[0].split(' ')[0];
+          }
+          if (deserializeState(sCode)) {
+            safeSave();
+            document.getElementById('importModal').classList.remove('open');
+            showToast('Schedule imported successfully!');
+          } else {
+            alert('Invalid schedule data. Please paste the full link or text from WhatsApp.');
+          }
         };
       });
     })();
