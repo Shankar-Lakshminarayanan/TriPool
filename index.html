@@ -36,14 +36,14 @@
     
     .container { max-width: 600px; margin: 0 auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
     
-    .bar-controls { display: flex; justify-content: space-between; align-items: center; }
+    .bar-controls { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .week-nav { display: flex; align-items: center; background: #131c2e; border: 1px solid #1e293b; border-radius: 8px; padding: 2px; }
-    .week-nav-btn { background: none; border: none; color: #94a3b8; padding: 5px 10px; cursor: pointer; font-size: 14px; }
-    .week-nav-label { font-size: 12px; font-weight: 600; padding: 0 8px; color: #f1f5f9; }
+    .week-nav-btn { background: none; border: none; color: #94a3b8; padding: 6px 10px; cursor: pointer; font-size: 14px; }
+    .week-nav-label { font-size: 12px; font-weight: 600; padding: 0 8px; color: #f1f5f9; white-space: nowrap; }
     .btn-auto {
-      background: #4f46e5; color: #ffffff; border: none; padding: 8px 14px;
+      background: #4f46e5; color: #ffffff; border: none; padding: 8px 12px;
       border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; gap: 6px;
+      display: flex; align-items: center; gap: 6px; white-space: nowrap;
     }
     
     .day-card {
@@ -55,7 +55,9 @@
       display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(51, 65, 85, 0.4);
     }
-    .day-title { font-size: 14px; font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 8px; }
+    .day-title-wrap { display: flex; align-items: baseline; gap: 6px; }
+    .day-name { font-size: 14px; font-weight: 700; color: #ffffff; }
+    .day-date { font-size: 12px; font-weight: 500; color: #94a3b8; }
     .day-off-tag { font-size: 10px; background: #334155; color: #cbd5e1; padding: 2px 6px; border-radius: 4px; }
     .btn-day-off {
       background: #1e293b; border: 1px solid #334155; color: #cbd5e1;
@@ -224,7 +226,7 @@
 
   <script>
     (function() {
-      const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+      const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
       let state = {
         members: [
           { id: 'm1', name: 'Rider 1' },
@@ -235,7 +237,7 @@
         schedules: {}
       };
 
-      let activePicker = null; // { key, slot }
+      let activePicker = null;
 
       function showToast(text) {
         const el = document.getElementById('toastMsg');
@@ -244,13 +246,42 @@
         setTimeout(() => el.classList.remove('show'), 2000);
       }
 
-      function getWeekKey(offset) {
-        const d = new Date();
-        d.setDate(d.getDate() + (offset * 7));
-        const year = d.getFullYear();
-        const firstJan = new Date(year, 0, 1);
-        const weekNum = Math.ceil((((d - firstJan) / 86400000) + firstJan.getDay() + 1) / 7);
-        return `${year}-W${weekNum}`;
+      // Compute the exact Monday date for the selected week offset
+      function getMondayOfWeek(offset) {
+        const now = new Date();
+        const day = now.getDay(); // 0 is Sunday, 6 is Saturday
+        
+        // If it's Saturday (6) or Sunday (0), advance to upcoming Monday
+        let diffToMonday = 1 - day;
+        if (day === 0) diffToMonday = 1;      // Sunday -> next day
+        if (day === 6) diffToMonday = 2;      // Saturday -> 2 days ahead
+
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday + (offset * 7));
+        return monday;
+      }
+
+      function getWeekDaysData(offset) {
+        const monday = getMondayOfWeek(offset);
+        const days = [];
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+        for (let i = 0; i < 5; i++) {
+          const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const isoDate = `${yyyy}-${mm}-${dd}`;
+          const formattedDate = `${monthNames[d.getMonth()]} ${d.getDate()}`;
+
+          days.push({
+            name: DAY_NAMES[i],
+            shortName: DAY_NAMES[i].slice(0, 3),
+            isoDate: isoDate,
+            formattedDate: formattedDate,
+            key: isoDate // Schedule storage key is the exact YYYY-MM-DD
+          });
+        }
+        return days;
       }
 
       function safeLoad() {
@@ -282,12 +313,20 @@
       }
 
       function render() {
-        const currentWeek = getWeekKey(state.weekOffset);
+        const weekDays = getWeekDaysData(state.weekOffset);
         const container = document.getElementById('daysContainer');
         container.innerHTML = '';
 
-        DAYS.forEach(day => {
-          const key = `${currentWeek}_${day}`;
+        // Update Week Navigation Label with real dates (e.g. "Oct 5 – Oct 9, 2026")
+        const startDay = weekDays[0];
+        const endDay = weekDays[4];
+        const yearStr = (startDay.formattedDate.split(' ')[0] === endDay.formattedDate.split(' ')[0]) 
+          ? `${startDay.formattedDate} – ${endDay.formattedDate}`
+          : `${startDay.formattedDate} – ${endDay.formattedDate}`;
+        document.getElementById('weekLabel').textContent = yearStr;
+
+        weekDays.forEach(dayObj => {
+          const key = dayObj.key;
           const s = state.schedules[key] || { skip: false, am: '', pm: '', unavail_am: [], unavail_pm: [] };
           const unavailAm = s.unavail_am || [];
           const unavailPm = s.unavail_pm || [];
@@ -300,8 +339,9 @@
 
           let html = `
             <div class="day-header">
-              <div class="day-title">
-                ${day}
+              <div class="day-title-wrap">
+                <span class="day-name">${dayObj.name}</span>
+                <span class="day-date">· ${dayObj.formattedDate}</span>
                 ${s.skip ? '<span class="day-off-tag">Day Off</span>' : ''}
               </div>
               <button class="btn-day-off ${s.skip ? 'active' : ''}" data-day="${key}">
@@ -318,7 +358,7 @@
                 <!-- AM Session -->
                 <div class="session-col">
                   <div class="session-title am">☀️ Morning (AM)</div>
-                  <button class="driver-btn ${!amMember ? 'driver-btn-unassigned' : ''}" data-day="${key}" data-slot="am">
+                  <button class="driver-btn ${!amMember ? 'driver-btn-unassigned' : ''}" data-day="${key}" data-slot="am" data-dayname="${dayObj.shortName}">
                     <span>${amMember ? amMember.name : 'Select Driver'}</span>
                     <span style="font-size: 10px;">▼</span>
                   </button>
@@ -339,7 +379,7 @@
                 <!-- PM Session -->
                 <div class="session-col">
                   <div class="session-title pm">🌙 Evening (PM)</div>
-                  <button class="driver-btn ${!pmMember ? 'driver-btn-unassigned' : ''}" data-day="${key}" data-slot="pm">
+                  <button class="driver-btn ${!pmMember ? 'driver-btn-unassigned' : ''}" data-day="${key}" data-slot="pm" data-dayname="${dayObj.shortName}">
                     <span>${pmMember ? pmMember.name : 'Select Driver'}</span>
                     <span style="font-size: 10px;">▼</span>
                   </button>
@@ -381,7 +421,8 @@
           btn.onclick = function() {
             const key = this.getAttribute('data-day');
             const slot = this.getAttribute('data-slot');
-            openDriverPicker(key, slot);
+            const dayname = this.getAttribute('data-dayname');
+            openDriverPicker(key, slot, dayname);
           };
         });
 
@@ -408,15 +449,14 @@
         });
       }
 
-      function openDriverPicker(key, slot) {
+      function openDriverPicker(key, slot, dayname) {
         activePicker = { key, slot };
         const s = state.schedules[key] || { skip: false, am: '', pm: '', unavail_am: [], unavail_pm: [] };
         const currentSelected = s[slot] || '';
         const unavailList = (slot === 'am' ? s.unavail_am : s.unavail_pm) || [];
 
         const titleEl = document.getElementById('pickerTitle');
-        const dayName = key.split('_')[1];
-        titleEl.textContent = `${dayName} - ${slot.toUpperCase()} Driver`;
+        titleEl.textContent = `${dayname || ''} · ${slot.toUpperCase()} Driver`;
 
         const container = document.getElementById('pickerOptionsContainer');
         container.innerHTML = '';
@@ -439,7 +479,7 @@
           container.appendChild(div);
         });
 
-        // Option to clear/unassign
+        // Clear option
         const clearDiv = document.createElement('div');
         clearDiv.className = 'picker-option unassign-option';
         clearDiv.innerHTML = `<span>Unassigned</span> ${!currentSelected ? '<span>✓</span>' : ''}`;
@@ -461,11 +501,11 @@
       }
 
       function autoFill() {
-        const currentWeek = getWeekKey(state.weekOffset);
+        const weekDays = getWeekDaysData(state.weekOffset);
         let turn = 0;
 
-        DAYS.forEach(day => {
-          const key = `${currentWeek}_${day}`;
+        weekDays.forEach(dayObj => {
+          const key = dayObj.key;
           if (!state.schedules[key]) state.schedules[key] = { skip: false, am: '', pm: '', unavail_am: [], unavail_pm: [] };
           const s = state.schedules[key];
           if (s.skip) return;
@@ -495,21 +535,23 @@
       }
 
       function shareWhatsApp() {
-        const currentWeek = getWeekKey(state.weekOffset);
+        const weekDays = getWeekDaysData(state.weekOffset);
         const link = getShareableUrl();
-        let msg = `🚗 *TriPool Carpool Schedule (${currentWeek})*\n\n`;
+        const startDay = weekDays[0];
+        const endDay = weekDays[4];
+        let msg = `🚗 *TriPool Carpool Schedule (${startDay.formattedDate} – ${endDay.formattedDate})*\n\n`;
 
-        DAYS.forEach(d => {
-          const k = `${currentWeek}_${d}`;
+        weekDays.forEach(dayObj => {
+          const k = dayObj.key;
           const s = state.schedules[k];
           if (s && s.skip) {
-            msg += `📅 *${d}*: Day Off\n`;
+            msg += `📅 *${dayObj.shortName}, ${dayObj.formattedDate}*: Day Off\n`;
           } else if (s) {
             const am = state.members.find(m => m.id === s.am)?.name || 'Needs Driver';
             const pm = state.members.find(m => m.id === s.pm)?.name || 'Needs Driver';
-            msg += `📅 *${d}*: AM: ${am} | PM: ${pm}\n`;
+            msg += `📅 *${dayObj.shortName}, ${dayObj.formattedDate}*: AM: ${am} | PM: ${pm}\n`;
           } else {
-            msg += `📅 *${d}*: Open\n`;
+            msg += `📅 *${dayObj.shortName}, ${dayObj.formattedDate}*: Open\n`;
           }
         });
 
@@ -532,13 +574,11 @@
 
         document.getElementById('btnPrevWeek').onclick = () => {
           state.weekOffset--;
-          document.getElementById('weekLabel').textContent = state.weekOffset === 0 ? 'This Week' : `Week ${state.weekOffset > 0 ? '+' : ''}${state.weekOffset}`;
           render();
         };
 
         document.getElementById('btnNextWeek').onclick = () => {
           state.weekOffset++;
-          document.getElementById('weekLabel').textContent = state.weekOffset === 0 ? 'This Week' : `Week ${state.weekOffset > 0 ? '+' : ''}${state.weekOffset}`;
           render();
         };
 
