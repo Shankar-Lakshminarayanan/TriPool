@@ -36,7 +36,6 @@
     
     .container { max-width: 600px; margin: 0 auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
     
-    /* Sync alert banner */
     .sync-banner {
       background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4);
       border-radius: 10px; padding: 10px 14px; font-size: 12px; color: #34d399;
@@ -84,10 +83,12 @@
     
     .driver-btn {
       width: 100%; background: #19253c; border: 1px solid #334155; border-radius: 8px;
-      padding: 8px 10px; color: #fff; font-size: 12px; font-weight: 600; text-align: left;
+      padding: 9px 10px; color: #fff; font-size: 12px; font-weight: 600; text-align: left;
       cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+      transition: border-color 0.15s;
     }
     .driver-btn:hover { border-color: #10b981; }
+    .driver-btn.assigned { background: #1b2e3c; border-color: #10b981; color: #34d399; }
     .driver-btn-unassigned { color: #64748b; font-weight: 400; }
     
     .avail-label { font-size: 10px; color: #64748b; margin-top: 2px; }
@@ -99,7 +100,6 @@
     .chip.available { background: #131c2e; color: #cbd5e1; border: 1px solid #1e293b; }
     .chip.unavailable { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); text-decoration: line-through; }
     
-    /* Dedicated Share Section */
     .card-share {
       background: #131c2e; border: 1px solid #1e293b; border-radius: 14px;
       padding: 16px; margin-top: 10px; display: flex; flex-direction: column; gap: 10px;
@@ -208,7 +208,7 @@
     <!-- Share Card -->
     <div class="card-share">
       <div class="card-share-title">Share Schedule with Group</div>
-      <div class="card-share-desc">Tap below to share via WhatsApp or copy the link. Any rider who opens your link will immediately see all saved names, rides, and dates.</div>
+      <div class="card-share-desc">Tap below to share via WhatsApp or copy the link. Any rider who opens the link will see the saved schedule and driver selections instantly.</div>
       <div class="share-btns-row">
         <button class="btn-wa-action" id="btnWhatsApp">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -270,6 +270,7 @@
   <script>
     (function() {
       const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+      
       let state = {
         members: [
           { id: 'm1', name: 'Rider 1' },
@@ -322,14 +323,14 @@
         return days;
       }
 
-      // Compact, lossless state serializer
+      // Compact state serializer including weekOffset
       function serializeState() {
         const payload = {
+          w: state.weekOffset,
           m: state.members.map(m => m.name),
           s: {}
         };
 
-        // Only save keys that actually have assignments or changes
         Object.keys(state.schedules).forEach(k => {
           const item = state.schedules[k];
           if (item && (item.skip || item.am || item.pm || (item.unavail_am && item.unavail_am.length) || (item.unavail_pm && item.unavail_pm.length))) {
@@ -352,6 +353,10 @@
           const data = JSON.parse(raw);
           if (!data) return false;
 
+          if (data.w !== undefined) {
+            state.weekOffset = parseInt(data.w, 10) || 0;
+          }
+
           if (Array.isArray(data.m) && data.m.length === 3) {
             state.members[0].name = data.m[0];
             state.members[1].name = data.m[1];
@@ -365,8 +370,8 @@
                 skip: item.k === 1,
                 am: item.a || '',
                 pm: item.p || '',
-                unavail_am: item.ua || [],
-                unavail_pm: item.up || []
+                unavail_am: Array.isArray(item.ua) ? item.ua : [],
+                unavail_pm: Array.isArray(item.up) ? item.up : []
               };
             });
           }
@@ -388,29 +393,32 @@
         } catch (e) {}
 
         if (loadedFromUrl) {
-          // Show confirmation banner
           const banner = document.getElementById('syncBanner');
           const bannerText = document.getElementById('syncBannerText');
           bannerText.textContent = `✓ Loaded schedule for ${state.members.map(m => m.name).join(', ')}!`;
           banner.classList.add('active');
-          safeSave(true); // Save to local storage quietly
+          safeSave(true);
           return;
         }
 
-        // Otherwise load from local storage
         try {
-          const local = localStorage.getItem('tripool_schedule_data_v2');
+          const local = localStorage.getItem('tripool_schedule_data_v3');
           if (local) {
             const data = JSON.parse(local);
             if (data.m) state.members = data.m;
             if (data.s) state.schedules = data.s;
+            if (data.w !== undefined) state.weekOffset = data.w;
           }
         } catch (e) {}
       }
 
       function safeSave(skipRender = false) {
         try {
-          localStorage.setItem('tripool_schedule_data_v2', JSON.stringify({ m: state.members, s: state.schedules }));
+          localStorage.setItem('tripool_schedule_data_v3', JSON.stringify({
+            w: state.weekOffset,
+            m: state.members,
+            s: state.schedules
+          }));
         } catch (e) {}
         if (!skipRender) render();
       }
@@ -430,8 +438,9 @@
           const unavailAm = s.unavail_am || [];
           const unavailPm = s.unavail_pm || [];
 
-          const amMember = state.members.find(m => m.id === s.am);
-          const pmMember = state.members.find(m => m.id === s.pm);
+          // Resolve driver directly by id or fallback to name match
+          const amMember = state.members.find(m => m.id === s.am || m.name === s.am);
+          const pmMember = state.members.find(m => m.id === s.pm || m.name === s.pm);
 
           const card = document.createElement('div');
           card.className = `day-card ${s.skip ? 'skipped' : ''}`;
@@ -457,7 +466,7 @@
                 <!-- AM Session -->
                 <div class="session-col">
                   <div class="session-title am">☀️ Morning (AM)</div>
-                  <button class="driver-btn ${!amMember ? 'driver-btn-unassigned' : ''}" data-day="${key}" data-slot="am" data-dayname="${dayObj.shortName}">
+                  <button class="driver-btn ${amMember ? 'assigned' : 'driver-btn-unassigned'}" data-day="${key}" data-slot="am" data-dayname="${dayObj.shortName}">
                     <span>${amMember ? amMember.name : 'Select Driver'}</span>
                     <span style="font-size: 10px;">▼</span>
                   </button>
@@ -478,7 +487,7 @@
                 <!-- PM Session -->
                 <div class="session-col">
                   <div class="session-title pm">🌙 Evening (PM)</div>
-                  <button class="driver-btn ${!pmMember ? 'driver-btn-unassigned' : ''}" data-day="${key}" data-slot="pm" data-dayname="${dayObj.shortName}">
+                  <button class="driver-btn ${pmMember ? 'assigned' : 'driver-btn-unassigned'}" data-day="${key}" data-slot="pm" data-dayname="${dayObj.shortName}">
                     <span>${pmMember ? pmMember.name : 'Select Driver'}</span>
                     <span style="font-size: 10px;">▼</span>
                   </button>
@@ -561,7 +570,7 @@
         container.innerHTML = '';
 
         state.members.forEach(m => {
-          const isSelected = currentSelected === m.id;
+          const isSelected = currentSelected === m.id || currentSelected === m.name;
           const isUnavail = unavailList.includes(m.id);
 
           const div = document.createElement('div');
@@ -638,8 +647,8 @@
           if (s && s.skip) {
             msg += `📅 *${dayObj.shortName}, ${dayObj.formattedDate}*: Day Off\n`;
           } else if (s) {
-            const am = state.members.find(m => m.id === s.am)?.name || 'Needs Driver';
-            const pm = state.members.find(m => m.id === s.pm)?.name || 'Needs Driver';
+            const am = state.members.find(m => m.id === s.am || m.name === s.am)?.name || 'Needs Driver';
+            const pm = state.members.find(m => m.id === s.pm || m.name === s.pm)?.name || 'Needs Driver';
             msg += `📅 *${dayObj.shortName}, ${dayObj.formattedDate}*: AM: ${am} | PM: ${pm}\n`;
           } else {
             msg += `📅 *${dayObj.shortName}, ${dayObj.formattedDate}*: Open\n`;
@@ -665,12 +674,12 @@
 
         document.getElementById('btnPrevWeek').onclick = () => {
           state.weekOffset--;
-          render();
+          safeSave();
         };
 
         document.getElementById('btnNextWeek').onclick = () => {
           state.weekOffset++;
-          render();
+          safeSave();
         };
 
         document.getElementById('btnAutoFill').onclick = autoFill;
@@ -711,7 +720,6 @@
           showToast('Names updated!');
         };
 
-        // Manual Import Modal Logic
         document.getElementById('btnOpenImport').onclick = () => {
           document.getElementById('importTextInput').value = '';
           document.getElementById('importModal').classList.add('open');
